@@ -17,12 +17,26 @@ func (pm *PeerManager) AddPeer(peer *Peer) {
 	pm.Mux.Lock()
 	defer pm.Mux.Unlock()
 
+	if existing, exists := pm.Peers[peer.Address]; exists && existing.Conn != nil {
+		_ = existing.Conn.Close()
+	}
+
 	pm.Peers[peer.Address] = peer
 }
 
 func (pm *PeerManager) RemovePeer(address string) {
 	pm.Mux.Lock()
 	defer pm.Mux.Unlock()
+
+	peer, exists := pm.Peers[address]
+	if !exists {
+		return
+	}
+
+	peer.Connected = false
+	if peer.Conn != nil {
+		_ = peer.Conn.Close()
+	}
 
 	delete(pm.Peers, address)
 }

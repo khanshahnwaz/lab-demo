@@ -13,7 +13,11 @@ type Message struct {
 	Payload  string `json:"payload"`
 }
 
-func SendMessage(conn net.Conn, message Message) error {
+func SendMessage(peer *Peer, message Message) error {
+	if peer == nil || peer.Conn == nil {
+		return fmt.Errorf("invalid peer connection")
+	}
+
 	data, err := json.Marshal(message)
 	if err != nil {
 		return err
@@ -21,11 +25,14 @@ func SendMessage(conn net.Conn, message Message) error {
 
 	data = append(data, '\n')
 
-	_, err = conn.Write(data)
+	peer.WriteMux.Lock()
+	defer peer.WriteMux.Unlock()
+
+	_, err = peer.Conn.Write(data)
 	return err
 }
 
-func ReceiveMessages(conn net.Conn, handler func(Message)) {
+func ReceiveMessages(conn net.Conn, handler func(Message), onDisconnect func()) {
 	scanner := bufio.NewScanner(conn)
 
 	for scanner.Scan() {
@@ -43,4 +50,8 @@ func ReceiveMessages(conn net.Conn, handler func(Message)) {
 	if err := scanner.Err(); err != nil {
 		fmt.Println("Connection read error:", err)
 	}
+
+	fmt.Println("Peer disconnected:", conn.RemoteAddr())
+
+	onDisconnect()
 }
